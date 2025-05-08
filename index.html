@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Particle Cloud - Mobile Optimizations</title>
+    <title>Interactive Particle Cloud - UI Enhancements</title>
     <style>
         body {
             margin: 0;
@@ -17,7 +17,7 @@
             -ms-user-select: none; 
             user-select: none; 
         }
-        #canvasContainer { /* Renamed from #container */
+        #canvasContainer { 
             width: 100vw;
             height: 100vh;
             display: block;
@@ -32,6 +32,7 @@
             left: 15px;
             background-color: rgba(25, 25, 25, 0.92); 
             padding: 20px;
+            padding-top: 40px; /* More padding at top for close button */
             border-radius: 12px; 
             box-shadow: 0 6px 25px rgba(0,0,0,0.5);
             display: flex;
@@ -51,6 +52,24 @@
             opacity: 0;
             pointer-events: none;
         }
+        /* Close Button Style */
+        #closeControlsButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 24px; /* Larger 'X' */
+            line-height: 1;
+            padding: 5px;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        #closeControlsButton:hover {
+            color: #fff;
+        }
+
         #controls .control-group {
             border-bottom: 1px solid rgba(255,255,255,0.08);
             padding-bottom: 18px;
@@ -151,37 +170,47 @@
         /* Media Query for Mobile */
         @media (max-width: 600px) {
             #controls {
-                max-width: 260px; /* Make controls narrower */
-                padding: 15px; /* Reduce padding */
-                gap: 15px; /* Reduce gap */
+                max-width: 280px; /* Slightly wider to better fit content */
+                padding: 15px; 
+                padding-top: 35px; /* Ensure space for close button */
+                gap: 15px; 
                 top: 10px;
                 left: 10px;
                 max-height: calc(100vh - 20px); 
             }
+            #closeControlsButton {
+                top: 8px;
+                right: 8px;
+                font-size: 22px;
+            }
             #controls .control-group label,
             #controls .control-group .group-title {
-                 font-size: 0.9em; /* Slightly smaller labels */
+                 font-size: 0.9em; 
                  margin-bottom: 10px;
             }
             #controls button {
-                padding: 8px 12px; /* Smaller buttons */
-                font-size: 0.85em;
+                padding: 8px 10px; /* Adjust padding */
+                font-size: 0.8em; /* Slightly smaller font */
             }
              #controls .button-group {
-                 gap: 8px; /* Smaller gap in button groups */
+                 gap: 8px; 
              }
+            #controls input[type="color"] {
+                width: 35px; 
+                height: 28px;
+            }
              #uiToggleHint {
-                 font-size: 0.8em; /* Smaller hint text */
+                 font-size: 0.8em; 
                  bottom: 10px;
+                 width: calc(100% - 40px); /* Prevent overflow */
              }
         }
     </style>
 </head>
 <body>
     <div id="canvasContainer"></div> 
-    <div id="uiToggleHint">Press 'F' or Double-Tap to toggle UI</div> 
-    <div id="controls">
-        <div class="control-group">
+    <div id="uiToggleHint">Press 'F', Double-Tap, or use 'X' to toggle UI</div> <div id="controls">
+        <button id="closeControlsButton" aria-label="Close Controls">&times;</button> <div class="control-group">
             <label>Shape:</label>
             <div class="button-group">
                 <button data-shape="sphere">Sphere</button>
@@ -237,7 +266,7 @@
 
         <div class="control-group">
             <label for="particleCount">Particle Count <span id="particleCountLabel" class="slider-label-value">(5000)</span>:</label>
-            <input type="range" id="particleCount" min="1000" max="50000" value="5000" step="100">
+            <input type="range" id="particleCount" min="1000" max="100000" value="5000" step="100">
         </div>
         <div class="control-group">
             <label for="particleSize">Particle Size <span id="particleSizeLabel" class="slider-label-value">(1.0)</span>:</label>
@@ -257,7 +286,7 @@
         // --- Global Variables ---
         let scene, camera, renderer, particles, orbitControls;
         let particleMaterial, particleGeometry;
-        let tempClearColor = new THREE.Color(); // Only used if background animation is re-enabled
+        // Removed tempClearColor as background is now static black
 
         // State variables
         let currentShapeType = 'sphere';
@@ -286,6 +315,7 @@
         const canvasContainer = document.getElementById('canvasContainer'); 
         const controlsPanel = document.getElementById('controls');
         const uiToggleHint = document.getElementById('uiToggleHint'); 
+        const closeControlsButton = document.getElementById('closeControlsButton'); // New close button
 
         const singleParticleColorInput = document.getElementById('singleParticleColor');
         const gradientColorBottomInput = document.getElementById('gradientColorBottom');
@@ -433,7 +463,8 @@
             });
             particles = new THREE.Points(particleGeometry, particleMaterial);
             scene.add(particles);
-            currentParticleCount = numParticles; currentParticleSize = sizeValue;
+            currentParticleCount = numParticles; 
+            currentParticleSize = sizeValue;
         }
 
         // --- Shape Position Generators ---
@@ -675,10 +706,13 @@
 
             // Double Tap listener for UI toggle on touch devices
             canvasContainer.addEventListener('touchend', (event) => {
-                // Check if the event is primarily a single touch end
-                // Ignore if multiple touches are active (likely pinch-zoom)
+                // Only proceed if exactly one touch point ended
+                if (event.changedTouches.length !== 1) { 
+                    return;
+                }
+                // Also check if other touches are still active (e.g., mid-pinch)
                 if (event.touches.length > 0) {
-                    return; // Don't process for double-tap if other fingers are still down
+                    return; 
                 }
                 
                 const currentTime = new Date().getTime();
@@ -690,12 +724,15 @@
                     event.preventDefault(); // Prevent zoom/selection on double tap
                 }
                 lastTap = currentTime;
-            }, { passive: false }); // Use passive: false to allow preventDefault
+            }, { passive: false }); 
             
-            // Prevent context menu on long press (optional, for cleaner mobile experience)
+            // Prevent context menu on long press 
             canvasContainer.addEventListener('contextmenu', (event) => {
                 event.preventDefault();
             });
+
+            // Close button listener
+            closeControlsButton.addEventListener('click', toggleControls);
 
 
             // Shape buttons
@@ -725,7 +762,9 @@
             // Sliders
             particleCountInput.addEventListener('input', (event) => particleCountLabel.textContent = `(${event.target.value})`);
             particleCountInput.addEventListener('change', (event) => {
-                createParticles(parseInt(event.target.value), currentShapeType, currentParticleColor, currentParticleSize);
+                const newCount = parseInt(event.target.value);
+                currentParticleCount = newCount; 
+                createParticles(newCount, currentShapeType, currentParticleColor, currentParticleSize);
             });
             particleSizeInput.addEventListener('input', (event) => {
                 const size = parseFloat(event.target.value);
@@ -769,8 +808,8 @@
             orbitControls.update(); 
             const time = Date.now();
 
-            // Removed background color animation
-            // renderer.setClearColor(0x000000); // Set in init()
+            // Background is static black
+            // renderer.setClearColor(0x000000); 
 
             // RGB Cycle for particles if active
             if (currentParticleColor === 'rgbCycle' && particles && particles.geometry) {
@@ -783,7 +822,7 @@
                 const r = cycleColor.r;
                 const g = cycleColor.g;
                 const b = cycleColor.b;
-                for (let i = 0; i < currentParticleCount; i++) {
+                for (let i = 0; i < currentParticleCount; i++) { 
                     const idx = i * 3;
                     colorsArray[idx]= r; 
                     colorsArray[idx + 1]= g; 
