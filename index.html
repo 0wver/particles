@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Particle Cloud - Error Handling Fix</title>
+    <title>Interactive Particle Cloud - 1M Particle Option</title>
     <style>
         body {
             margin: 0;
@@ -37,7 +37,7 @@
             box-shadow: 0 6px 25px rgba(0,0,0,0.5);
             display: flex;
             flex-direction: column;
-            gap: 18px; /* Slightly reduced gap */
+            gap: 18px; 
             max-width: 340px; 
             max-height: calc(100vh - 40px); 
             overflow-y: auto;
@@ -72,7 +72,7 @@
 
         #controls .control-group {
             border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding-bottom: 15px; /* Reduced padding */
+            padding-bottom: 15px; 
         }
         #controls .control-group:last-child {
             border-bottom: none;
@@ -81,9 +81,9 @@
         #controls .control-group label,
         #controls .control-group .group-title {
             display: block;
-            margin-bottom: 10px; /* Reduced margin */
+            margin-bottom: 10px; 
             font-weight: 600;
-            font-size: 0.95em; /* Adjusted size */
+            font-size: 0.95em; 
             color: #e8e8e8;
         }
          #controls .control-group .color-picker-label {
@@ -95,18 +95,18 @@
         #controls .button-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px; /* Reduced gap */
+            gap: 8px; 
             align-items: center;
         }
         #controls button {
-            padding: 8px 12px; /* Adjusted padding */
+            padding: 8px 12px; 
             background-color: #383838; 
             color: #e0e0e0;
             border: 1px solid #505050;
             border-radius: 8px; 
             cursor: pointer;
             transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
-            font-size: 0.85em; /* Adjusted font size */
+            font-size: 0.85em; 
         }
         #controls button:hover {
             background-color: #007bff; 
@@ -122,7 +122,7 @@
             transform: scale(0.95);
         }
         #controls input[type="color"] {
-            width: 35px; /* Adjusted size */
+            width: 35px; 
             height: 28px;
             padding: 0;
             border: 1px solid #505050;
@@ -139,7 +139,7 @@
             accent-color: #007bff; 
         }
         #controls .slider-label-value {
-            font-size: 0.8em; /* Adjusted size */
+            font-size: 0.8em; 
             color: #c0c0c0;
             margin-left: 8px;
         }
@@ -268,8 +268,9 @@
         </div>
 
         <div class="control-group">
-            <label for="particleCount">Particle Count <span id="particleCountLabel" class="slider-label-value">(5000)</span>:</label>
-            <input type="range" id="particleCount" min="1000" max="200000" value="5000" step="1000"> </div>
+            <label for="particleCount">Particle Count <span id="particleCountLabel" class="slider-label-value">(5,000)</span>:</label>
+            <input type="range" id="particleCount" min="1000" max="1000000" value="5000" step="10000"> 
+        </div>
         <div class="control-group">
             <label for="particleSize">Particle Size <span id="particleSizeLabel" class="slider-label-value">(1.0)</span>:</label>
             <input type="range" id="particleSize" min="0.1" max="5" value="1.0" step="0.1">
@@ -918,10 +919,8 @@
                  animateParticleColors('rgbCycle');
             });
              document.getElementById('randomGradientCycle').addEventListener('click', () => {
-                 // Toggle behavior: If it's already running, stop it. Otherwise, start it.
                  if (currentParticleColor === 'randomGradient' && randomGradientIntervalId) {
                      stopRandomGradientCycle();
-                     // Optionally set back to regular gradient mode after stopping
                      animateParticleColors('gradient'); 
                  } else {
                      animateParticleColors('randomGradient'); 
@@ -936,7 +935,6 @@
             particleCountInput.addEventListener('input', (event) => particleCountLabel.textContent = `(${parseInt(event.target.value).toLocaleString()})`); // Format large numbers
             particleCountInput.addEventListener('change', (event) => {
                 const newCount = parseInt(event.target.value);
-                // Update state *before* calling createParticles
                 currentParticleCount = newCount; 
                 createParticles(newCount, currentShapeType, currentParticleColor, currentParticleSize);
             });
@@ -958,7 +956,6 @@
                 const newIntervalSeconds = parseFloat(event.target.value);
                 gradientCycleIntervalLabel.textContent = `(${newIntervalSeconds.toFixed(1)}s)`;
                 currentRandomGradientInterval = newIntervalSeconds * 1000;
-                // If the cycle is already active, restart it with the new interval
                 if (currentParticleColor === 'randomGradient') { 
                     startRandomGradientCycle(); 
                 }
