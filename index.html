@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Particle Cloud - Mobile Toggle</title>
+    <title>Interactive Particle Cloud - Mobile Optimizations</title>
     <style>
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #0a0a0a; 
+            background-color: #000000; /* Pure black background */
             color: #fff;
             overflow: hidden;
             cursor: default; 
             outline: none; 
-            /* Prevent text selection on double tap */
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10 and IE 11 */
-            user-select: none; /* Standard syntax */
+            -webkit-user-select: none; 
+            -ms-user-select: none; 
+            user-select: none; 
         }
-        #container {
+        #canvasContainer { /* Renamed from #container */
             width: 100vw;
             height: 100vh;
             display: block;
@@ -138,7 +137,7 @@
             z-index: 5; 
             transition: opacity 0.5s ease-in-out;
             opacity: 1;
-            text-align: center; /* Ensure text centers if it wraps */
+            text-align: center; 
         }
         #uiToggleHint.hidden {
             opacity: 0;
@@ -148,11 +147,40 @@
         #controls::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
         #controls::-webkit-scrollbar-thumb { background: #007bff; border-radius: 10px; }
         #controls::-webkit-scrollbar-thumb:hover { background: #0056b3; }
+
+        /* Media Query for Mobile */
+        @media (max-width: 600px) {
+            #controls {
+                max-width: 260px; /* Make controls narrower */
+                padding: 15px; /* Reduce padding */
+                gap: 15px; /* Reduce gap */
+                top: 10px;
+                left: 10px;
+                max-height: calc(100vh - 20px); 
+            }
+            #controls .control-group label,
+            #controls .control-group .group-title {
+                 font-size: 0.9em; /* Slightly smaller labels */
+                 margin-bottom: 10px;
+            }
+            #controls button {
+                padding: 8px 12px; /* Smaller buttons */
+                font-size: 0.85em;
+            }
+             #controls .button-group {
+                 gap: 8px; /* Smaller gap in button groups */
+             }
+             #uiToggleHint {
+                 font-size: 0.8em; /* Smaller hint text */
+                 bottom: 10px;
+             }
+        }
     </style>
 </head>
 <body>
     <div id="canvasContainer"></div> 
-    <div id="uiToggleHint">Press 'F' or Double-Tap to toggle UI</div> <div id="controls">
+    <div id="uiToggleHint">Press 'F' or Double-Tap to toggle UI</div> 
+    <div id="controls">
         <div class="control-group">
             <label>Shape:</label>
             <div class="button-group">
@@ -229,7 +257,7 @@
         // --- Global Variables ---
         let scene, camera, renderer, particles, orbitControls;
         let particleMaterial, particleGeometry;
-        let tempClearColor = new THREE.Color();
+        let tempClearColor = new THREE.Color(); // Only used if background animation is re-enabled
 
         // State variables
         let currentShapeType = 'sphere';
@@ -255,7 +283,7 @@
 
 
         // DOM Elements
-        const canvasContainer = document.getElementById('canvasContainer'); // Updated ID
+        const canvasContainer = document.getElementById('canvasContainer'); 
         const controlsPanel = document.getElementById('controls');
         const uiToggleHint = document.getElementById('uiToggleHint'); 
 
@@ -304,10 +332,10 @@
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setClearColor(0x0a0a0a);
-            canvasContainer.appendChild(renderer.domElement); // Append renderer to the container
+            renderer.setClearColor(0x000000); // Set pure black background
+            canvasContainer.appendChild(renderer.domElement); 
 
-            orbitControls = new THREE.OrbitControls(camera, renderer.domElement); // Controls listen on renderer's element
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement); 
             orbitControls.enableDamping = true; 
             orbitControls.dampingFactor = 0.05;
             orbitControls.minDistance = 10; 
@@ -504,6 +532,7 @@
             return new THREE.Vector3(x, y, z);
         }
 
+
         // --- Animations ---
         function animateParticlesToShape(newShapeType, duration = 2000) {
             if (!particles) return; 
@@ -646,15 +675,22 @@
 
             // Double Tap listener for UI toggle on touch devices
             canvasContainer.addEventListener('touchend', (event) => {
+                // Check if the event is primarily a single touch end
+                // Ignore if multiple touches are active (likely pinch-zoom)
+                if (event.touches.length > 0) {
+                    return; // Don't process for double-tap if other fingers are still down
+                }
+                
                 const currentTime = new Date().getTime();
                 const timeSinceLastTap = currentTime - lastTap;
+
                 if (timeSinceLastTap < doubleTapDelay && timeSinceLastTap > 0) {
                     // Double tap detected
                     toggleControls();
-                    event.preventDefault(); // Prevent zoom on double tap
+                    event.preventDefault(); // Prevent zoom/selection on double tap
                 }
                 lastTap = currentTime;
-            });
+            }, { passive: false }); // Use passive: false to allow preventDefault
             
             // Prevent context menu on long press (optional, for cleaner mobile experience)
             canvasContainer.addEventListener('contextmenu', (event) => {
@@ -669,7 +705,6 @@
                         stopAutoShapeTransition();
                     }
                     animateParticlesToShape(button.getAttribute('data-shape'));
-                    // Find index safely, handle potential -1 if shape isn't in sequence (shouldn't happen here)
                     const index = SHAPE_SEQUENCE.indexOf(button.getAttribute('data-shape'));
                     if (index !== -1) {
                          currentShapeIndex = index;
@@ -713,7 +748,7 @@
                 autoTransitionIntervalLabel.textContent = `(${newIntervalSeconds.toFixed(1)}s)`;
                 currentAutoShapeInterval = newIntervalSeconds * 1000;
                 if (autoShapeTransitionActive) { 
-                    startAutoShapeTransition(); // Restart interval with new time
+                    startAutoShapeTransition(); 
                 }
             });
 
@@ -731,13 +766,11 @@
         // --- Animation Loop ---
         function animate() { 
             requestAnimationFrame(animate);
-            orbitControls.update(); // Required if damping or autoRotate is enabled
+            orbitControls.update(); 
             const time = Date.now();
 
-            // Animate background color
-            const bgHue = (time * 0.00001) % 1;
-            tempClearColor.setHSL(bgHue, 0.2, 0.05); 
-            renderer.setClearColor(tempClearColor);
+            // Removed background color animation
+            // renderer.setClearColor(0x000000); // Set in init()
 
             // RGB Cycle for particles if active
             if (currentParticleColor === 'rgbCycle' && particles && particles.geometry) {
@@ -747,7 +780,6 @@
 
                 const colorsAttribute = particles.geometry.attributes.color;
                 const colorsArray = colorsAttribute.array;
-                // Optimize color update: Set the color once per frame
                 const r = cycleColor.r;
                 const g = cycleColor.g;
                 const b = cycleColor.b;
@@ -757,7 +789,7 @@
                     colorsArray[idx + 1]= g; 
                     colorsArray[idx + 2]= b;
                 }
-                colorsAttribute.needsUpdate = true; // Flag the attribute for update
+                colorsAttribute.needsUpdate = true; 
             }
 
             // Particle system rotation
