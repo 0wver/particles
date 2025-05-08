@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Particle Cloud - Mobile Toggle</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0a0a0a; 
+            color: #fff;
+            overflow: hidden;
+            cursor: default; 
+            outline: none; 
+            /* Prevent text selection on double tap */
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and IE 11 */
+            user-select: none; /* Standard syntax */
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+        #controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background-color: rgba(25, 25, 25, 0.92); 
+            padding: 20px;
+            border-radius: 12px; 
+            box-shadow: 0 6px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px; 
+            max-width: 340px; 
+            max-height: calc(100vh - 40px); 
+            overflow-y: auto;
+            z-index: 10; 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        #controls.hidden {
+            transform: translateX(-120%); 
+            opacity: 0;
+            pointer-events: none;
+        }
+        #controls .control-group {
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 18px;
+        }
+        #controls .control-group:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        #controls .control-group label,
+        #controls .control-group .group-title {
+            display: block;
+            margin-bottom: 12px; 
+            font-weight: 600;
+            font-size: 1em; 
+            color: #e8e8e8;
+        }
+         #controls .control-group .color-picker-label {
+            font-size: 0.8em;
+            color: #ccc;
+            margin-bottom: 4px;
+            display: block;
+        }
+        #controls .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px; 
+            align-items: center;
+        }
+        #controls button {
+            padding: 10px 15px;
+            background-color: #383838; 
+            color: #e0e0e0;
+            border: 1px solid #505050;
+            border-radius: 8px; 
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease, border-color 0.2s ease;
+            font-size: 0.9em;
+        }
+        #controls button:hover {
+            background-color: #007bff; 
+            border-color: #007bff;
+            color: white;
+        }
+        #controls button.active-toggle { 
+            background-color: #007bff;
+            border-color: #0056b3;
+            color: white;
+        }
+        #controls button:active {
+            transform: scale(0.95);
+        }
+        #controls input[type="color"] {
+            width: 40px; 
+            height: 30px;
+            padding: 0;
+            border: 1px solid #505050;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            margin-right: 5px; 
+        }
+        #controls input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+        #controls input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+        #controls input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+            accent-color: #007bff; 
+        }
+        #controls .slider-label-value {
+            font-size: 0.85em;
+            color: #c0c0c0;
+            margin-left: 8px;
+        }
+        #uiToggleHint {
+            position: fixed;
+            bottom: 20px; 
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 15px;
+            background-color: rgba(25, 25, 25, 0.85);
+            color: #c0c0c0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            z-index: 5; 
+            transition: opacity 0.5s ease-in-out;
+            opacity: 1;
+            text-align: center; /* Ensure text centers if it wraps */
+        }
+        #uiToggleHint.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #controls::-webkit-scrollbar { width: 8px; }
+        #controls::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        #controls::-webkit-scrollbar-thumb { background: #007bff; border-radius: 10px; }
+        #controls::-webkit-scrollbar-thumb:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div id="canvasContainer"></div> 
+    <div id="uiToggleHint">Press 'F' or Double-Tap to toggle UI</div> <div id="controls">
+        <div class="control-group">
+            <label>Shape:</label>
+            <div class="button-group">
+                <button data-shape="sphere">Sphere</button>
+                <button data-shape="cube">Cube</button>
+                <button data-shape="torus">Torus</button>
+                <button data-shape="cone">Cone</button>
+                <button data-shape="cylinder">Cylinder</button>
+                <button data-shape="spiral">Spiral</button>
+                <button data-shape="pyramid">Pyramid</button> 
+                <button data-shape="octahedron">Octahedron</button> 
+                <button data-shape="cloud">Cloud</button>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label class="group-title">Particle Color</label>
+            <label for="singleParticleColor" class="color-picker-label">Uniform Color:</label>
+            <div class="button-group">
+                <input type="color" id="singleParticleColor" value="#ffffff">
+                <button id="applyUniformColor">Apply Uniform</button>
+            </div>
+            <label class="color-picker-label" style="margin-top:15px;">Gradient Colors:</label>
+            <div class="button-group" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                <div>
+                    <label for="gradientColorBottom" class="color-picker-label" style="font-size:0.75em">Bottom:</label>
+                    <input type="color" id="gradientColorBottom" value="#6a0dad">
+                </div>
+                <div>
+                    <label for="gradientColorMiddle" class="color-picker-label" style="font-size:0.75em">Middle:</label>
+                    <input type="color" id="gradientColorMiddle" value="#007bff">
+                </div>
+                <div>
+                    <label for="gradientColorTop" class="color-picker-label" style="font-size:0.75em">Top:</label>
+                    <input type="color" id="gradientColorTop" value="#00ffff">
+                </div>
+                <button id="applyGradientColors" style="margin-top: 5px;">Apply Gradient</button>
+            </div>
+            <label class="color-picker-label" style="margin-top:15px;">Special Modes:</label>
+            <div class="button-group">
+                <button id="randomColors">Random</button>
+                <button id="rgbCycleColors">RGB Cycle</button>
+            </div>
+            <label for="rgbCycleSpeed" style="margin-top:15px;">RGB Cycle Speed <span id="rgbCycleSpeedLabel" class="slider-label-value">(0.5)</span>:</label>
+            <input type="range" id="rgbCycleSpeed" min="0.05" max="2.0" value="0.5" step="0.05">
+        </div>
+        
+        <div class="control-group">
+            <label class="group-title">Automation</label>
+            <button id="toggleAutoShapeTransition">Start Auto Shapes</button>
+            <label for="autoTransitionInterval" style="margin-top:15px;">Auto Transition Interval <span id="autoTransitionIntervalLabel" class="slider-label-value">(5.0s)</span>:</label>
+            <input type="range" id="autoTransitionInterval" min="2" max="15" value="5" step="0.5">
+        </div>
+
+        <div class="control-group">
+            <label for="particleCount">Particle Count <span id="particleCountLabel" class="slider-label-value">(5000)</span>:</label>
+            <input type="range" id="particleCount" min="1000" max="50000" value="5000" step="100">
+        </div>
+        <div class="control-group">
+            <label for="particleSize">Particle Size <span id="particleSizeLabel" class="slider-label-value">(1.0)</span>:</label>
+            <input type="range" id="particleSize" min="0.1" max="5" value="1.0" step="0.1">
+        </div>
+        <div class="control-group">
+            <label for="rotationSpeed">Shape Rotation Speed <span id="rotationSpeedLabel" class="slider-label-value">(0.5)</span>:</label> 
+            <input type="range" id="rotationSpeed" min="0" max="5" value="0.5" step="0.05">
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+
+    <script>
+        // --- Global Variables ---
+        let scene, camera, renderer, particles, orbitControls;
+        let particleMaterial, particleGeometry;
+        let tempClearColor = new THREE.Color();
+
+        // State variables
+        let currentShapeType = 'sphere';
+        let currentParticleColor = '#ffffff';
+        let currentParticleSize = 1.0;
+        let currentParticleCount = 5000;
+        let currentRotationSpeed = 0.5;
+        let currentRgbCycleSpeed = 0.5; 
+        let controlsVisible = true;
+
+        // Auto-transition state
+        let autoShapeTransitionActive = false;
+        let autoShapeIntervalId = null;
+        let currentAutoShapeInterval = 5000; 
+        const SHAPE_SEQUENCE = ['sphere', 'cube', 'torus', 'cone', 'cylinder', 'spiral', 'pyramid', 'octahedron', 'cloud'];
+        let currentShapeIndex = 0;
+
+
+        // Gradient colors
+        let GRADIENT_COLOR_BOTTOM = new THREE.Color(0x6a0dad);
+        let GRADIENT_COLOR_MIDDLE = new THREE.Color(0x007bff); 
+        let GRADIENT_COLOR_TOP = new THREE.Color(0x00ffff);
+
+
+        // DOM Elements
+        const canvasContainer = document.getElementById('canvasContainer'); // Updated ID
+        const controlsPanel = document.getElementById('controls');
+        const uiToggleHint = document.getElementById('uiToggleHint'); 
+
+        const singleParticleColorInput = document.getElementById('singleParticleColor');
+        const gradientColorBottomInput = document.getElementById('gradientColorBottom');
+        const gradientColorMiddleInput = document.getElementById('gradientColorMiddle');
+        const gradientColorTopInput = document.getElementById('gradientColorTop');
+
+        const particleCountInput = document.getElementById('particleCount');
+        const particleSizeInput = document.getElementById('particleSize');
+        const rotationSpeedInput = document.getElementById('rotationSpeed');
+        const rgbCycleSpeedInput = document.getElementById('rgbCycleSpeed'); 
+        
+        const toggleAutoShapeTransitionButton = document.getElementById('toggleAutoShapeTransition');
+        const autoTransitionIntervalInput = document.getElementById('autoTransitionInterval');
+        const autoTransitionIntervalLabel = document.getElementById('autoTransitionIntervalLabel');
+
+
+        const particleCountLabel = document.getElementById('particleCountLabel');
+        const particleSizeLabel = document.getElementById('particleSizeLabel');
+        const rotationSpeedLabel = document.getElementById('rotationSpeedLabel');
+        const rgbCycleSpeedLabel = document.getElementById('rgbCycleSpeedLabel'); 
+
+        // Shape parameters
+        const SHAPE_PARAMS = {
+            sphere: { radius: 80 },
+            cube: { size: 120 },
+            torus: { radius: 70, tubeRadius: 25 },
+            cone: { radius: 60, height: 100 },
+            cylinder: { radiusTop: 40, radiusBottom: 40, height: 120 },
+            spiral: { coils: 5, radius: 60, height: 100, pointsPerCoil: 200 },
+            pyramid: { baseSize: 100, height: 100 }, 
+            octahedron: { radius: 70 }, 
+            cloud: { range: 150 }
+        };
+
+        // Double Tap Detection Variables
+        let lastTap = 0;
+        const doubleTapDelay = 300; // ms
+
+        // --- Initialization ---
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 200; camera.lookAt(scene.position);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0x0a0a0a);
+            canvasContainer.appendChild(renderer.domElement); // Append renderer to the container
+
+            orbitControls = new THREE.OrbitControls(camera, renderer.domElement); // Controls listen on renderer's element
+            orbitControls.enableDamping = true; 
+            orbitControls.dampingFactor = 0.05;
+            orbitControls.minDistance = 10; 
+            orbitControls.maxDistance = 1000; 
+            
+            GRADIENT_COLOR_BOTTOM.set(gradientColorBottomInput.value);
+            GRADIENT_COLOR_MIDDLE.set(gradientColorMiddleInput.value);
+            GRADIENT_COLOR_TOP.set(gradientColorTopInput.value);
+            currentAutoShapeInterval = parseFloat(autoTransitionIntervalInput.value) * 1000;
+
+
+            createParticles(currentParticleCount, currentShapeType, currentParticleColor, currentParticleSize);
+            setupEventListeners();
+            animate();
+            
+            if (controlsVisible) {
+                 document.body.style.cursor = 'default';
+                 uiToggleHint.classList.remove('hidden');
+            } else {
+                 document.body.style.cursor = 'none';
+                 uiToggleHint.classList.add('hidden');
+                 controlsPanel.classList.add('hidden'); 
+            }
+            document.body.focus(); 
+        }
+
+        // --- Particle Creation ---
+        function createParticles(numParticles, shapeType, colorMode, sizeValue) {
+            if (particles) {
+                scene.remove(particles);
+                if (particleGeometry) particleGeometry.dispose();
+                if (particleMaterial) particleMaterial.dispose();
+            }
+
+            particleGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(numParticles * 3);
+            const colors = new Float32Array(numParticles * 3);
+            const tempParticleColorInstance = new THREE.Color();
+
+            for (let i = 0; i < numParticles; i++) {
+                const pos = getPositionForShape(shapeType, i, numParticles);
+                positions[i * 3] = pos.x;
+                positions[i * 3 + 1] = pos.y;
+                positions[i * 3 + 2] = pos.z;
+            }
+
+            if (colorMode === 'gradient') {
+                let minY = Infinity, maxY = -Infinity;
+                for (let i = 0; i < numParticles; i++) {
+                    const y = positions[i * 3 + 1];
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+                for (let i = 0; i < numParticles; i++) {
+                    const y = positions[i * 3 + 1];
+                    const normalizedY = (maxY === minY) ? 0.5 : (y - minY) / (maxY - minY); 
+                    
+                    if (normalizedY < 0.5) { 
+                        tempParticleColorInstance.copy(GRADIENT_COLOR_BOTTOM).lerp(GRADIENT_COLOR_MIDDLE, normalizedY * 2);
+                    } else { 
+                        tempParticleColorInstance.copy(GRADIENT_COLOR_MIDDLE).lerp(GRADIENT_COLOR_TOP, (normalizedY - 0.5) * 2);
+                    }
+                    colors[i * 3] = tempParticleColorInstance.r;
+                    colors[i * 3 + 1] = tempParticleColorInstance.g;
+                    colors[i * 3 + 2] = tempParticleColorInstance.b;
+                }
+            } else if (colorMode === 'random') {
+                for (let i = 0; i < numParticles; i++) {
+                    tempParticleColorInstance.setHex(Math.random() * 0xffffff);
+                    colors[i * 3] = tempParticleColorInstance.r;
+                    colors[i * 3 + 1] = tempParticleColorInstance.g;
+                    colors[i * 3 + 2] = tempParticleColorInstance.b;
+                }
+            } else if (colorMode === 'rgbCycle') {
+                tempParticleColorInstance.setHSL(0, 1.0, 0.5); 
+                 for (let i = 0; i < numParticles; i++) {
+                    colors[i * 3] = tempParticleColorInstance.r;
+                    colors[i * 3 + 1] = tempParticleColorInstance.g;
+                    colors[i * 3 + 2] = tempParticleColorInstance.b;
+                }
+            } else { 
+                tempParticleColorInstance.set(colorMode);
+                for (let i = 0; i < numParticles; i++) {
+                    colors[i * 3] = tempParticleColorInstance.r;
+                    colors[i * 3 + 1] = tempParticleColorInstance.g;
+                    colors[i * 3 + 2] = tempParticleColorInstance.b;
+                }
+            }
+
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            particleMaterial = new THREE.PointsMaterial({
+                size: sizeValue, vertexColors: true, sizeAttenuation: true,
+                transparent: true, opacity: 0.85, depthWrite: false
+            });
+            particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            currentParticleCount = numParticles; currentParticleSize = sizeValue;
+        }
+
+        // --- Shape Position Generators ---
+        function getPositionForShape(shapeType, index, totalParticles) { 
+            switch (shapeType) {
+                case 'sphere':   return getSpherePosition(SHAPE_PARAMS.sphere.radius);
+                case 'cube':     return getCubePosition(SHAPE_PARAMS.cube.size);
+                case 'torus':    return getTorusPosition(SHAPE_PARAMS.torus.radius, SHAPE_PARAMS.torus.tubeRadius);
+                case 'cone':     return getConePosition(SHAPE_PARAMS.cone.radius, SHAPE_PARAMS.cone.height);
+                case 'cylinder': return getCylinderPosition(SHAPE_PARAMS.cylinder.radiusTop, SHAPE_PARAMS.cylinder.radiusBottom, SHAPE_PARAMS.cylinder.height);
+                case 'spiral':   return getSpiralPosition(SHAPE_PARAMS.spiral.coils, SHAPE_PARAMS.spiral.radius, SHAPE_PARAMS.spiral.height, index, totalParticles);
+                case 'pyramid':  return getPyramidPosition(SHAPE_PARAMS.pyramid.baseSize, SHAPE_PARAMS.pyramid.height); 
+                case 'octahedron': return getOctahedronPosition(SHAPE_PARAMS.octahedron.radius); 
+                case 'cloud': default: return getRandomCloudPosition(SHAPE_PARAMS.cloud.range);
+            }
+        }
+
+        function getSpherePosition(radius) {
+            const u = Math.random(), v = Math.random();
+            const theta = 2 * Math.PI * u, phi = Math.acos(2 * v - 1);
+            return new THREE.Vector3(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
+        }
+        function getCubePosition(size) {
+            return new THREE.Vector3((Math.random() - 0.5) * size, (Math.random() - 0.5) * size, (Math.random() - 0.5) * size);
+        }
+        function getTorusPosition(R, r) {
+            const theta = Math.random() * 2 * Math.PI, phi = Math.random() * 2 * Math.PI;
+            return new THREE.Vector3((R + r * Math.cos(phi)) * Math.cos(theta), (R + r * Math.cos(phi)) * Math.sin(theta), r * Math.sin(phi));
+        }
+        function getRandomCloudPosition(range) {
+            return new THREE.Vector3((Math.random() - 0.5) * range, (Math.random() - 0.5) * range, (Math.random() - 0.5) * range);
+        }
+        function getConePosition(radius, height) {
+            const u = Math.random(); 
+            const theta = Math.random() * 2 * Math.PI; 
+            const h = u * height; 
+            const r = radius * (1 - u); 
+            const x = r * Math.cos(theta);
+            const y = h - height / 2; 
+            const z = r * Math.sin(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+        function getCylinderPosition(radiusTop, radiusBottom, height) {
+            const u = Math.random(); 
+            const theta = Math.random() * 2 * Math.PI; 
+            const h = u * height; 
+            const r = radiusBottom + (radiusTop - radiusBottom) * u;
+            const x = r * Math.cos(theta);
+            const y = h - height / 2; 
+            const z = r * Math.sin(theta);
+            return new THREE.Vector3(x, y, z);
+        }
+        function getSpiralPosition(coils, radius, height, index, totalParticles) {
+            const t = index / (totalParticles -1); 
+            const angle = coils * 2 * Math.PI * t; 
+            const currentRadius = radius * t; 
+            const x = currentRadius * Math.cos(angle);
+            const y = (t - 0.5) * height; 
+            const z = currentRadius * Math.sin(angle);
+            return new THREE.Vector3(x, y, z);
+        }
+        function getPyramidPosition(baseSize, height) {
+            const halfBase = baseSize / 2;
+            let x, y, z;
+            const baseX = (Math.random() - 0.5) * baseSize;
+            const baseZ = (Math.random() - 0.5) * baseSize;
+            const isBasePoint = Math.random() < 0.2; 
+
+            if (isBasePoint) {
+                x = baseX;
+                y = -height / 2;
+                z = baseZ;
+            } else {
+                const apexY = height / 2;
+                const lerpFactor = Math.random(); 
+                x = baseX * (1 - lerpFactor);
+                y = -height/2 * (1-lerpFactor) + apexY * lerpFactor;
+                z = baseZ * (1 - lerpFactor);
+            }
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function getOctahedronPosition(radius) {
+            let x, y, z;
+            do {
+                x = (Math.random() * 2 - 1); 
+                y = (Math.random() * 2 - 1);
+                z = (Math.random() * 2 - 1);
+            } while (x === 0 && y === 0 && z === 0); 
+
+            const d = Math.abs(x) + Math.abs(y) + Math.abs(z); 
+            x = (x / d) * radius;
+            y = (y / d) * radius;
+            z = (z / d) * radius;
+            
+            return new THREE.Vector3(x, y, z);
+        }
+
+        // --- Animations ---
+        function animateParticlesToShape(newShapeType, duration = 2000) {
+            if (!particles) return; 
+            currentShapeType = newShapeType; 
+
+            const posAttr=particles.geometry.attributes.position,currPos=new Float32Array(posAttr.array),finalPosArr=posAttr.array,numP=currPos.length/3,targetPos=new Float32Array(numP*3);
+            for(let i=0;i<numP;i++){const nP=getPositionForShape(newShapeType,i,numP);targetPos[i*3]=nP.x;targetPos[i*3+1]=nP.y;targetPos[i*3+2]=nP.z;}
+            anime.remove(finalPosArr);
+            anime({targets:{value:0},value:1,duration:duration,easing:'easeInOutExpo',
+                update:(anim)=>{const p=anim.progress/100;for(let i=0;i<numP;i++){const id=i*3;finalPosArr[id]=currPos[id]+(targetPos[id]-currPos[id])*p;finalPosArr[id+1]=currPos[id+1]+(targetPos[id+1]-currPos[id+1])*p;finalPosArr[id+2]=currPos[id+2]+(targetPos[id+2]-currPos[id+2])*p;}posAttr.needsUpdate=!0;},
+                complete:()=>{
+                    for(let i=0;i<numP;i++){const id=i*3;finalPosArr[id]=targetPos[id];finalPosArr[id+1]=targetPos[id+1];finalPosArr[id+2]=targetPos[id+2];}
+                    posAttr.needsUpdate=!0;
+                    if (currentParticleColor === 'gradient') {
+                        animateParticleColors('gradient', 500); 
+                    }
+                }
+            });
+        }
+
+        function animateParticleColors(newColorMode, duration = 1500) {
+            if (!particles) return;
+            currentParticleColor = newColorMode; 
+
+            const colorsAttribute = particles.geometry.attributes.color;
+            const currentColors = new Float32Array(colorsAttribute.array);
+            const finalColorsArray = colorsAttribute.array;
+            const numParticles = currentColors.length / 3;
+            const targetColors = new Float32Array(numParticles * 3);
+            const tempTargetColor = new THREE.Color();
+
+            if (newColorMode === 'gradient') {
+                GRADIENT_COLOR_BOTTOM.set(gradientColorBottomInput.value);
+                GRADIENT_COLOR_MIDDLE.set(gradientColorMiddleInput.value);
+                GRADIENT_COLOR_TOP.set(gradientColorTopInput.value);
+
+                const positionsAttribute = particles.geometry.attributes.position;
+                let minY = Infinity, maxY = -Infinity;
+                for (let i = 0; i < numParticles; i++) {
+                    const y = positionsAttribute.array[i * 3 + 1];
+                    if (y < minY) minY = y; if (y > maxY) maxY = y;
+                }
+                for (let i = 0; i < numParticles; i++) {
+                    const y = positionsAttribute.array[i * 3 + 1];
+                    const normalizedY = (maxY === minY) ? 0.5 : (y - minY) / (maxY - minY);
+                    if (normalizedY < 0.5) {
+                        tempTargetColor.copy(GRADIENT_COLOR_BOTTOM).lerp(GRADIENT_COLOR_MIDDLE, normalizedY * 2);
+                    } else {
+                        tempTargetColor.copy(GRADIENT_COLOR_MIDDLE).lerp(GRADIENT_COLOR_TOP, (normalizedY - 0.5) * 2);
+                    }
+                    targetColors[i * 3]=tempTargetColor.r; targetColors[i*3+1]=tempTargetColor.g; targetColors[i*3+2]=tempTargetColor.b;
+                }
+            } else if (newColorMode === 'random') {
+                for (let i = 0; i < numParticles; i++) {
+                    tempTargetColor.setHex(Math.random() * 0xffffff);
+                    targetColors[i*3]=tempTargetColor.r; targetColors[i*3+1]=tempTargetColor.g; targetColors[i*3+2]=tempTargetColor.b;
+                }
+            } else if (newColorMode === 'rgbCycle') {
+                const time = Date.now() * 0.0005 * currentRgbCycleSpeed; 
+                const hue = (time % 1);
+                tempTargetColor.setHSL(hue, 1.0, 0.5);
+                for (let i = 0; i < numParticles; i++) {
+                    finalColorsArray[i*3]=tempTargetColor.r; finalColorsArray[i*3+1]=tempTargetColor.g; finalColorsArray[i*3+2]=tempTargetColor.b;
+                }
+                colorsAttribute.needsUpdate = true;
+                return; 
+            } else { 
+                tempTargetColor.set(newColorMode); 
+                for (let i = 0; i < numParticles; i++) {
+                    targetColors[i*3]=tempTargetColor.r; targetColors[i*3+1]=tempTargetColor.g; targetColors[i*3+2]=tempTargetColor.b;
+                }
+            }
+            
+            anime.remove(finalColorsArray);
+            anime({
+                targets: { value: 0 }, value: 1, duration: duration, easing: 'easeInOutQuad',
+                update: (anim)=>{const p=anim.progress/100;for(let i=0;i<numParticles;i++){const id=i*3;finalColorsArray[id]=currentColors[id]+(targetColors[id]-currentColors[id])*p;finalColorsArray[id+1]=currentColors[id+1]+(targetColors[id+1]-currentColors[id+1])*p;finalColorsArray[id+2]=currentColors[id+2]+(targetColors[id+2]-currentColors[id+2])*p;}colorsAttribute.needsUpdate=!0;},
+                complete: ()=>{for(let i=0;i<numParticles;i++){const id=i*3;finalColorsArray[id]=targetColors[id];finalColorsArray[id+1]=targetColors[id+1];finalColorsArray[id+2]=targetColors[id+2];}colorsAttribute.needsUpdate=!0;}
+            });
+        }
+
+
+        // --- UI Toggling ---
+        function toggleControls() {
+            controlsVisible = !controlsVisible;
+            if (controlsVisible) {
+                controlsPanel.classList.remove('hidden');
+                uiToggleHint.classList.remove('hidden'); 
+                document.body.style.cursor = 'default';
+            } else {
+                controlsPanel.classList.add('hidden');
+                uiToggleHint.classList.add('hidden'); 
+                document.body.style.cursor = 'none';
+            }
+        }
+
+        // --- Auto Shape Transition Logic ---
+        function transitionToNextShape() {
+            currentShapeIndex = (currentShapeIndex + 1) % SHAPE_SEQUENCE.length;
+            const nextShape = SHAPE_SEQUENCE[currentShapeIndex];
+            animateParticlesToShape(nextShape);
+        }
+
+        function startAutoShapeTransition() {
+            if (autoShapeIntervalId) clearInterval(autoShapeIntervalId); 
+            autoShapeTransitionActive = true;
+            toggleAutoShapeTransitionButton.textContent = 'Stop Auto Shapes';
+            toggleAutoShapeTransitionButton.classList.add('active-toggle');
+            transitionToNextShape(); 
+            autoShapeIntervalId = setInterval(transitionToNextShape, currentAutoShapeInterval);
+        }
+
+        function stopAutoShapeTransition() {
+            autoShapeTransitionActive = false;
+            if (autoShapeIntervalId) {
+                clearInterval(autoShapeIntervalId);
+                autoShapeIntervalId = null;
+            }
+            toggleAutoShapeTransitionButton.textContent = 'Start Auto Shapes';
+            toggleAutoShapeTransitionButton.classList.remove('active-toggle');
+        }
+
+        function handleToggleAutoShapeTransition() {
+            if (autoShapeTransitionActive) {
+                stopAutoShapeTransition();
+            } else {
+                startAutoShapeTransition();
+            }
+        }
+
+
+        // --- Event Listeners Setup ---
+        function setupEventListeners() {
+            // Keyboard shortcut for UI toggle
+            window.addEventListener('keydown', (event) => {
+                if (event.key.toLowerCase() === 'f' && !(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)) {
+                    toggleControls();
+                }
+            });
+
+            // Double Tap listener for UI toggle on touch devices
+            canvasContainer.addEventListener('touchend', (event) => {
+                const currentTime = new Date().getTime();
+                const timeSinceLastTap = currentTime - lastTap;
+                if (timeSinceLastTap < doubleTapDelay && timeSinceLastTap > 0) {
+                    // Double tap detected
+                    toggleControls();
+                    event.preventDefault(); // Prevent zoom on double tap
+                }
+                lastTap = currentTime;
+            });
+            
+            // Prevent context menu on long press (optional, for cleaner mobile experience)
+            canvasContainer.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+
+
+            // Shape buttons
+            document.querySelectorAll('#controls button[data-shape]').forEach(button => {
+                button.addEventListener('click', () => {
+                    if (autoShapeTransitionActive) {
+                        stopAutoShapeTransition();
+                    }
+                    animateParticlesToShape(button.getAttribute('data-shape'));
+                    // Find index safely, handle potential -1 if shape isn't in sequence (shouldn't happen here)
+                    const index = SHAPE_SEQUENCE.indexOf(button.getAttribute('data-shape'));
+                    if (index !== -1) {
+                         currentShapeIndex = index;
+                    }
+                });
+            });
+
+            // Color controls
+            document.getElementById('applyUniformColor').addEventListener('click', () => animateParticleColors(singleParticleColorInput.value));
+            document.getElementById('randomColors').addEventListener('click', () => animateParticleColors('random'));
+            document.getElementById('applyGradientColors').addEventListener('click', () => animateParticleColors('gradient'));
+            document.getElementById('rgbCycleColors').addEventListener('click', () => animateParticleColors('rgbCycle'));
+            
+            gradientColorBottomInput.addEventListener('input', (e) => GRADIENT_COLOR_BOTTOM.set(e.target.value));
+            gradientColorMiddleInput.addEventListener('input', (e) => GRADIENT_COLOR_MIDDLE.set(e.target.value));
+            gradientColorTopInput.addEventListener('input', (e) => GRADIENT_COLOR_TOP.set(e.target.value));
+
+            // Sliders
+            particleCountInput.addEventListener('input', (event) => particleCountLabel.textContent = `(${event.target.value})`);
+            particleCountInput.addEventListener('change', (event) => {
+                createParticles(parseInt(event.target.value), currentShapeType, currentParticleColor, currentParticleSize);
+            });
+            particleSizeInput.addEventListener('input', (event) => {
+                const size = parseFloat(event.target.value);
+                particleSizeLabel.textContent = `(${size.toFixed(1)})`;
+                if (particles && particles.material) { particles.material.size = size; currentParticleSize = size; }
+            });
+            rotationSpeedInput.addEventListener('input', (event) => {
+                currentRotationSpeed = parseFloat(event.target.value);
+                rotationSpeedLabel.textContent = `(${currentRotationSpeed.toFixed(2)})`;
+            });
+            rgbCycleSpeedInput.addEventListener('input', (event) => {
+                currentRgbCycleSpeed = parseFloat(event.target.value);
+                rgbCycleSpeedLabel.textContent = `(${currentRgbCycleSpeed.toFixed(2)})`;
+            });
+
+            // Automation controls
+            toggleAutoShapeTransitionButton.addEventListener('click', handleToggleAutoShapeTransition);
+            autoTransitionIntervalInput.addEventListener('input', (event) => {
+                const newIntervalSeconds = parseFloat(event.target.value);
+                autoTransitionIntervalLabel.textContent = `(${newIntervalSeconds.toFixed(1)}s)`;
+                currentAutoShapeInterval = newIntervalSeconds * 1000;
+                if (autoShapeTransitionActive) { 
+                    startAutoShapeTransition(); // Restart interval with new time
+                }
+            });
+
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // --- Window Resize Handler ---
+        function onWindowResize() { 
+            camera.aspect = window.innerWidth / window.innerHeight; 
+            camera.updateProjectionMatrix(); 
+            renderer.setSize(window.innerWidth, window.innerHeight); 
+        }
+
+        // --- Animation Loop ---
+        function animate() { 
+            requestAnimationFrame(animate);
+            orbitControls.update(); // Required if damping or autoRotate is enabled
+            const time = Date.now();
+
+            // Animate background color
+            const bgHue = (time * 0.00001) % 1;
+            tempClearColor.setHSL(bgHue, 0.2, 0.05); 
+            renderer.setClearColor(tempClearColor);
+
+            // RGB Cycle for particles if active
+            if (currentParticleColor === 'rgbCycle' && particles && particles.geometry) {
+                const particleHue = (time * 0.0005 * currentRgbCycleSpeed) % 1; 
+                const cycleColor = new THREE.Color();
+                cycleColor.setHSL(particleHue, 1.0, 0.5);
+
+                const colorsAttribute = particles.geometry.attributes.color;
+                const colorsArray = colorsAttribute.array;
+                // Optimize color update: Set the color once per frame
+                const r = cycleColor.r;
+                const g = cycleColor.g;
+                const b = cycleColor.b;
+                for (let i = 0; i < currentParticleCount; i++) {
+                    const idx = i * 3;
+                    colorsArray[idx]= r; 
+                    colorsArray[idx + 1]= g; 
+                    colorsArray[idx + 2]= b;
+                }
+                colorsAttribute.needsUpdate = true; // Flag the attribute for update
+            }
+
+            // Particle system rotation
+            if (particles) {
+                 particles.rotation.y += 0.001 * currentRotationSpeed;
+                 particles.rotation.x += 0.0004 * currentRotationSpeed;
+            }
+            renderer.render(scene, camera);
+        }
+
+        // --- Start ---
+        init();
+    </script>
+</body>
+</html>
